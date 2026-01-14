@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>聽覺記憶訓練系統 - 專業報告版</title>
+    <style>
+        :root { --primary: #4a90e2; --accent: #e67e22; --success: #27ae60; --error: #e74c3c; --dark: #2c3e50; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #f4f7f8; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        .container { width: 95%; max-width: 1000px; }
+        #setup-page, #game-page, #report-page { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none; }
+        #setup-page { display: block; }
+
+        h2.title { color: var(--primary); text-align: center; margin-top: 0; }
+        
+        /* 設定區控制項 */
+        .config-controls { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+        .batch-zone { background: #eef5ff; padding: 15px; border-radius: 10px; border: 2px dashed var(--primary); margin-bottom: 20px; text-align: center; }
+        
+        .upload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .upload-card { border: 1px solid #ddd; padding: 12px; border-radius: 12px; background: #fafafa; }
+        .preview-img { width: 100%; height: 80px; object-fit: contain; background: #eee; border-radius: 5px; margin-bottom: 5px; display: none; }
+
+        .mode-toggles { display: flex; gap: 15px; margin: 20px 0; background: var(--dark); color: white; padding: 15px 25px; border-radius: 50px; font-size: 14px; justify-content: center; flex-wrap: wrap; }
+        .mode-toggles label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+
+        /* 遊戲介面 */
+        .stats-bar { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; font-size: 18px; font-weight: bold; background: #eee; padding: 10px; border-radius: 10px; }
+        .game-grid { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin: 30px auto; }
+        
+        .pad { 
+            flex: 1 1 140px; max-width: 180px; aspect-ratio: 1 / 1.2;
+            background: white; border: 4px solid #fff; border-radius: 20px; cursor: pointer; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: 0.2s; box-shadow: 0 6px 15px rgba(0,0,0,0.08); padding: 10px;
+        }
+        .pad img { width: 90%; height: 75%; object-fit: contain; pointer-events: none; }
+        .pad span { margin-top: 10px; font-weight: bold; color: #333; font-size: 1.1em; }
+        
+        .pad.active { border-color: var(--accent) !important; background: #fff9f0 !important; transform: scale(1.05); }
+        .hide-img img { opacity: 0; visibility: hidden; }
+        .hide-txt span { visibility: hidden; }
+        .flash-success { border-color: var(--success) !important; background: #f0fff4 !important; }
+        .flash-error { border-color: var(--error) !important; background: #fff5f5 !important; }
+
+        #status { font-size: 1.4em; font-weight: bold; min-height: 80px; margin: 10px 0; padding: 15px; border-radius: 15px; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .countdown-num { font-size: 2.5em; color: var(--error); margin-left: 10px; font-weight: bold; }
+
+        /* 報告頁面 */
+        .report-header { background: #e3f2fd; padding: 20px; border-radius: 15px; margin-bottom: 20px; border-left: 10px solid var(--primary); }
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .report-tag { background: white; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 14px; }
+        .tag-on { color: #2e7d32; font-weight: bold; }
+        .tag-off { color: #c62828; font-weight: bold; }
+
+        #history-log { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #history-log th, #history-log td { border: 1px solid #eee; padding: 12px; text-align: center; }
+        #history-log th { background: var(--dark); color: white; }
+
+        .btn { padding: 12px 30px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-apply { background: var(--success); color: white; width: 100%; }
+        .btn-start { background: var(--accent); color: white; font-size: 1.3em; padding: 15px 40px; border-radius: 50px; }
+        .btn-outline { background: white; border: 2px solid #ccc; color: #666; }
+        .btn-back { background: #eee; color: #666; font-size: 12px; margin-top: 40px; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+
+        .text-success { color: var(--success); background: #e8f5e9; }
+        .text-error { color: var(--error); background: #ffebee; }
+        .text-prompt { color: var(--primary); background: #e3f2fd; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup-page">
+        <h2 class="title">聽覺記憶訓練：設定內容</h2>
+        <div class="config-controls">
+            <div class="control-group">圖片數量：<input type="number" id="pic-count" value="4" min="2" max="10" style="width:45px; text-align:center" onchange="initSetup()"></div>
+            <div class="control-group">記憶長度：<input type="number" id="mem-count" value="3" min="2" max="10" style="width:45px; text-align:center"></div>
+            <div class="control-group">總題數：<input type="number" id="total-rounds-input" value="10" min="1" max="50" style="width:45px; text-align:center"></div>
+        </div>
+
+        <div class="batch-zone">
+            <strong>快速批次匯入圖片：</strong>
+            <input type="file" id="batch-input" accept="image/*" multiple onchange="handleBatchUpload(this)">
+        </div>
+        
+        <div id="upload-fields" class="upload-grid"></div>
+
+        <div class="mode-toggles">
+            <label><input type="checkbox" id="toggle-photo"> 唸讀時隱藏照片</label>
+            <label><input type="checkbox" id="toggle-text" checked> 顯示名稱文字</label>
+            <label><input type="checkbox" id="toggle-hint" checked> 唸讀時視覺提示</label>
+            <label><input type="checkbox" id="toggle-click-voice" checked> 點選語音回饋</label>
+        </div>
+
+        <button class="btn btn-apply" onclick="applySettings()">設定完成，進入挑戰 ➜</button>
+    </div>
+
+    <div id="game-page">
+        <div class="stats-bar">
+            <div id="progress">進度：1 / 10</div>
+            <div id="wrong-display">錯誤：0 次</div>
+            <div id="timer">時間：00 分 00 秒</div>
+        </div>
+        
+        <div id="status">準備好了嗎？</div>
+        <div id="game-grid" class="game-grid"></div>
+        
+        <div id="start-area" style="text-align: center;">
+            <button id="start-btn" class="btn btn-start" onclick="startChallenge()">開始挑戰賽</button>
+        </div>
+
+        <div id="feedback-area" style="display:none; text-align:center; gap:10px; justify-content:center; margin-top:10px;">
+            <button id="next-btn" class="btn" style="background:var(--success); color:white" onclick="handleNextClick()">下一題 ➜</button>
+            <button id="retry-btn" class="btn" style="background:var(--error); color:white" onclick="replayCurrentQuestion()">❌ 再聽一次</button>
+        </div>
+        <center><button class="btn-back" onclick="location.reload()">回到設定頁</button></center>
+    </div>
+
+    <div id="report-page">
+        <h2 class="title">挑戰結算報告</h2>
+        
+        <div class="report-header">
+            <div style="font-weight:bold; font-size:1.2em; margin-bottom:15px; color:var(--dark);">📊 數據與設定總覽</div>
+            <div class="report-grid" id="report-meta"></div>
+            
+            <div style="font-weight:bold; font-size:1.1em; margin-bottom:10px; color:var(--dark);">⚙️ 功能開關狀態</div>
+            <div class="report-grid" id="report-toggles"></div>
+        </div>
+
+        <div style="font-weight:bold; font-size:1.1em; margin-bottom:10px; color:var(--primary);">📝 詳細作答歷程</div>
+        <table id="history-log">
+            <thead>
+                <tr>
+                    <th>題號</th>
+                    <th>正確題目序列</th>
+                    <th>結果</th>
+                    <th>錯誤次數</th>
+                </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+        </table>
+
+        <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px;">
+            <button class="btn btn-start" onclick="restartWithSameSettings()">🔄 再挑戰一次</button>
+            <button class="btn btn-outline" onclick="location.reload()">⚙️ 重新進行設定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let config = [];
+    let currentSequence = [];
+    let userStep = 0;
+    let playing = false;
+    let challengeActive = false;
+    let currentRound = 1;
+    let totalRounds = 10;
+    let wrongTotal = 0;
+    let roundWrongCount = 0; 
+    let startTime = 0;
+    let finalTimeStr = "";
+    let timerInterval = null;
+    let challengeLog = []; 
+
+    function initSetup() {
+        const count = Math.min(Math.max(document.getElementById('pic-count').value, 2), 10);
+        const container = document.getElementById('upload-fields');
+        const defaults = ["項目1", "項目2", "項目3", "項目4", "項目5", "項目6", "項目7", "項目8", "項目9", "項目10"];
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            container.innerHTML += `
+                <div class="upload-card">
+                    <img id="prev-${i}" class="preview-img">
+                    <b>項目 ${i+1}</b>
+                    <input type="file" id="f-${i}" accept="image/*" style="width:100%; font-size:11px;" onchange="previewSingle(${i}, this)">
+                    <input type="text" id="n-${i}" value="${defaults[i]}" style="width:100%; margin-top:5px;">
+                </div>`;
+        }
+    }
+    initSetup();
+
+    function previewSingle(index, input) {
+        const img = document.getElementById(`prev-${index}`);
+        if (input.files && input.files[0]) {
+            img.src = URL.createObjectURL(input.files[0]);
+            img.style.display = 'block';
+        }
+    }
+
+    function handleBatchUpload(input) {
+        const files = Array.from(input.files);
+        const count = parseInt(document.getElementById('pic-count').value);
+        files.slice(0, count).forEach((file, i) => {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            const targetInput = document.getElementById(`f-${i}`);
+            targetInput.files = dataTransfer.files;
+            previewSingle(i, targetInput);
+            document.getElementById(`n-${i}`).value = file.name.split('.').slice(0, -1).join('.');
+        });
+    }
+
+    function formatTime(totalSeconds) {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = Math.floor(totalSeconds % 60);
+        return `${mins.toString().padStart(2, '0')} 分 ${secs.toString().padStart(2, '0')} 秒`;
+    }
+
+    function showPage(id) {
+        ['setup-page', 'game-page', 'report-page'].forEach(p => document.getElementById(p).style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+    }
+
+    function applySettings() {
+        const count = document.getElementById('pic-count').value;
+        totalRounds = parseInt(document.getElementById('total-rounds-input').value) || 10;
+        const grid = document.getElementById('game-grid');
+        config = [];
+        grid.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const file = document.getElementById(`f-${i}`).files[0];
+            const name = document.getElementById(`n-${i}`).value;
+            if (!file) { alert(`請上傳第 ${i+1} 張圖片`); return; }
+            const url = URL.createObjectURL(file);
+            config.push({ id: i, name: name, url: url });
+            grid.innerHTML += `<div class="pad" id="p${i}" onclick="handleUserClick(${i})"><img src="${url}"><span>${name}</span></div>`;
+        }
+        showPage('game-page');
+        document.getElementById('start-btn').style.display = 'inline-block';
+        updateVisuals(true);
+    }
+
+    function updateVisuals(isInteractive) {
+        const grid = document.getElementById('game-grid');
+        const hidePhoto = document.getElementById('toggle-photo').checked;
+        const showText = document.getElementById('toggle-text').checked;
+        grid.className = 'game-grid';
+        if (isInteractive) {
+            if (!showText) grid.classList.add('hide-txt');
+        } else {
+            if (hidePhoto) grid.classList.add('hide-img');
+            if (!showText) grid.classList.add('hide-txt');
+        }
+    }
+
+    function speakSync(text, index, useHint) {
+        return new Promise((resolve) => {
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'zh-TW';
+            msg.rate = 0.85;
+            const el = (index !== null) ? document.getElementById('p' + index) : null;
+            msg.onstart = () => { if (useHint && el) el.classList.add('active'); };
+            msg.onend = () => { if (el) el.classList.remove('active'); resolve(); };
+            window.speechSynthesis.speak(msg);
+        });
+    }
+
+    function startChallenge() {
+        currentRound = 1;
+        wrongTotal = 0;
+        challengeLog = [];
+        challengeActive = true;
+        startTime = Date.now();
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('wrong-display').innerText = `錯誤：0 次`;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            finalTimeStr = formatTime(elapsed);
+            document.getElementById('timer').innerText = `時間：${finalTimeStr}`;
+        }, 1000);
+        prepareNextQuestion();
+    }
+
+    function prepareNextQuestion() {
+        window.speechSynthesis.cancel();
+        roundWrongCount = 0;
+        const memLen = document.getElementById('mem-count').value;
+        currentSequence = [];
+        for (let i = 0; i < memLen; i++) {
+            currentSequence.push(Math.floor(Math.random() * config.length));
+        }
+        playCurrentQuestion();
+    }
+
+    async function playCurrentQuestion() {
+        playing = true;
+        userStep = 0;
+        document.getElementById('feedback-area').style.display = 'none';
+        document.getElementById('progress').innerText = `進度：${currentRound} / ${totalRounds}`;
+        
+        const statusEl = document.getElementById('status');
+        updateVisuals(false);
+
+        statusEl.innerHTML = `第 ${currentRound} 題準備中... <span class="countdown-num">2</span>`;
+        await new Promise(r => setTimeout(r, 1000));
+        statusEl.innerHTML = `第 ${currentRound} 題準備中... <span class="countdown-num">1</span>`;
+        await new Promise(r => setTimeout(r, 1000));
+        
+        statusEl.innerText = `請專心聽播放內容...`;
+        statusEl.className = ""; 
+        await new Promise(r => setTimeout(r, 300));
+        
+        for (let id of currentSequence) {
+            await speakSync(config[id].name, id, document.getElementById('toggle-hint').checked);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        
+        playing = false;
+        updateVisuals(true);
+        statusEl.className = "text-prompt";
+        statusEl.innerText = `請依序點選：0 / ${currentSequence.length}`;
+    }
+
+    function replayCurrentQuestion() {
+        window.speechSynthesis.cancel();
+        playCurrentQuestion();
+    }
+
+    window.handleUserClick = function(id) {
+        if (playing) return;
+        if (document.getElementById('toggle-click-voice').checked) {
+            window.speechSynthesis.cancel();
+            speakSync(config[id].name, null, false);
+        }
+        const el = document.getElementById('p' + id);
+        if (challengeActive) {
+            if (id === currentSequence[userStep]) {
+                el.classList.add('flash-success');
+                setTimeout(() => el.classList.remove('flash-success'), 300);
+                userStep++;
+                document.getElementById('status').innerText = `請依序點選：${userStep} / ${currentSequence.length}`;
+                if (userStep === currentSequence.length) showRoundSuccess();
+            } else {
+                el.classList.add('flash-error');
+                setTimeout(() => el.classList.remove('flash-error'), 300);
+                showRoundError();
+            }
+        }
+    }
+
+    function showRoundSuccess() {
+        playing = true; 
+        challengeLog.push({ round: currentRound, seq: currentSequence.map(idx => config[idx].name).join(' → '), wrongs: roundWrongCount });
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = `🌟 全部正確 (${currentSequence.length}/${currentSequence.length})`;
+        statusEl.className = "text-success";
+        setTimeout(() => {
+            if (currentRound < totalRounds) {
+                document.getElementById('feedback-area').style.display = 'flex';
+                document.getElementById('next-btn').style.display = 'inline-block';
+                document.getElementById('retry-btn').style.display = 'none';
+            } else endChallenge();
+        }, 500);
+    }
+
+    function showRoundError() {
+        playing = true;
+        wrongTotal++;
+        roundWrongCount++;
+        document.getElementById('wrong-display').innerText = `錯誤：${wrongTotal} 次`;
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = `❌ 順序記錯囉！`;
+        statusEl.className = "text-error";
+        setTimeout(() => {
+            document.getElementById('feedback-area').style.display = 'flex';
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('retry-btn').style.display = 'inline-block';
+        }, 500);
+    }
+
+    function handleNextClick() {
+        currentRound++;
+        prepareNextQuestion();
+    }
+
+    function endChallenge() {
+        challengeActive = false;
+        playing = true;
+        clearInterval(timerInterval);
+        renderReport();
+        showPage('report-page');
+    }
+
+    function renderReport() {
+        // 渲染數據
+        const meta = document.getElementById('report-meta');
+        meta.innerHTML = `
+            <div class="report-tag"><b>總挑戰時間：</b> ${finalTimeStr}</div>
+            <div class="report-tag"><b>總錯誤次數：</b> ${wrongTotal} 次</div>
+            <div class="report-tag"><b>圖片數量：</b> ${document.getElementById('pic-count').value} 張</div>
+            <div class="report-tag"><b>記憶長度：</b> ${document.getElementById('mem-count').value} 詞</div>
+            <div class="report-tag"><b>挑戰題數：</b> ${totalRounds} 題</div>
+        `;
+
+        // 渲染開關狀態
+        const toggles = [
+            { id: 'toggle-photo', label: '唸讀時隱藏照片' },
+            { id: 'toggle-text', label: '顯示名稱文字' },
+            { id: 'toggle-hint', label: '唸讀時視覺提示' },
+            { id: 'toggle-click-voice', label: '點選語音回饋' }
+        ];
+        document.getElementById('report-toggles').innerHTML = toggles.map(t => {
+            const val = document.getElementById(t.id).checked;
+            return `<div class="report-tag ${val ? 'tag-on' : 'tag-off'}">${t.label}：${val ? '開啟' : '關閉'}</div>`;
+        }).join('');
+
+        // 渲染歷程表格
+        const body = document.getElementById('history-body');
+        body.innerHTML = '';
+        challengeLog.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.round}</td>
+                <td style="text-align:left">${item.seq}</td>
+                <td class="${item.wrongs === 0 ? 'row-success' : 'row-error'}">${item.wrongs === 0 ? '一次通過' : '修正通過'}</td>
+                <td>${item.wrongs}</td>
+            `;
+            body.appendChild(row);
+        });
+    }
+
+    function restartWithSameSettings() {
+        showPage('game-page');
+        startChallenge();
+    }
+</script>
+</body>
+</html>
